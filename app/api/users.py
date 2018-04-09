@@ -43,15 +43,47 @@ def get_followed(id):
     return jsonify(data)
 
 
+@bp.route('/users/<int:id>/is_following/<username>', methods=['GET'])
+@token_auth.login_required
+def is_following(id, username):
+    current_user = User.query.get_or_404(id)
+    user = User.query.filter_by(username=username).first()
+    is_following = current_user.is_following(user)
+    return jsonify({'is_following': is_following})
+
+@bp.route('/users/<int:id>/follow/<username>', methods=['PUT'])
+@token_auth.login_required
+def follow(id, username):
+    # current_user = User.query.get_or_404(id)
+    # data = request.get_json() or {}
+    current_user = User.query.get_or_404(id)
+    user = User.query.filter_by(username=username).first()
+    current_user.follow(user)
+    db.session.commit()
+    return '', 204
+
+
+@bp.route('/users/<int:id>/unfollow/<username>', methods=['PUT'])
+@token_auth.login_required
+def unfollow(id, username):
+    # current_user = User.query.get_or_404(id)
+    # data = request.get_json() or {}
+    current_user = User.query.get_or_404(id)
+    user = User.query.filter_by(username=username).first()
+    current_user.unfollow(user)
+    db.session.commit()
+    return '', 204
+
+
 @bp.route('/users', methods=['POST'])
 def create_user():
     data = request.get_json() or {}
     if 'username' not in data or 'email' not in data or 'password' not in data:
         return bad_request('must include username, email and password fields')
     if User.query.filter_by(username=data['username']).first():
-        return bad_request('please use a different username')
+        return bad_request('该用户名已被使用')
     if User.query.filter_by(email=data['email']).first():
-        return bad_request('please use a different email address')
+        return bad_request('该邮箱已被注册')
     user = User()
     user.from_dict(data, new_user=True)
     db.session.add(user)
@@ -69,10 +101,10 @@ def update_user(id):
     data = request.get_json() or {}
     if 'username' in data and data['username'] != user.username and \
             User.query.filter_by(username=data['username']).first():
-        return bad_request('please use a different username')
+        return bad_request('该用户名已被使用')
     if 'email' in data and data['email'] != user.email and \
             User.query.filter_by(email=data['email']).first():
-        return bad_request('please use a different email address')
+        return bad_request('该邮箱已被注册')
     user.from_dict(data, new_user=False)
     db.session.commit()
     return jsonify(user.to_dict())

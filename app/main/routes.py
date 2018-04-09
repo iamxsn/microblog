@@ -36,7 +36,7 @@ def index():
         flash(_('Your post is now live!'))
         return redirect(url_for('main.index'))
     page = request.args.get('page', 1, type=int)
-    posts = current_user.followed_posts().paginate(
+    posts = current_user.followed_posts.paginate(
         page, current_app.config['POSTS_PER_PAGE'], False)
     next_url = url_for('main.explore', page=posts.next_num) \
         if posts.has_next else None

@@ -133,6 +133,7 @@ class User(UserMixin, PaginatedAPIMixin, db.Model):
         return self.followed.filter(
             followers.c.followed_id == user.id).count() > 0
 
+    @property
     def followed_posts(self):
         followed = Post.query.join(
             followers, (followers.c.followed_id == Post.user_id)).filter(
@@ -208,7 +209,7 @@ class User(UserMixin, PaginatedAPIMixin, db.Model):
         if new_user and 'password' in data:
             self.set_password(data['password'])
 
-    def get_token(self, expires_in=3600):
+    def get_token(self, expires_in=360000):
         now = datetime.utcnow()
         if self.token and self.token_expiration > now + timedelta(seconds=60):
             return self.token
@@ -233,16 +234,32 @@ def load_user(id):
     return User.query.get(int(id))
 
 
-class Post(SearchableMixin, db.Model):
+class Post(SearchableMixin, PaginatedAPIMixin, db.Model):
     __searchable__ = ['body']
     id = db.Column(db.Integer, primary_key=True)
-    body = db.Column(db.String(140))
+    body = db.Column(db.String)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     language = db.Column(db.String(5))
 
     def __repr__(self):
         return '<Post {}>'.format(self.body)
+
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'body': self.body,
+            'timestamp': self.timestamp,
+            'user_id': self.user_id,
+            'username': self.author.username,
+            'avatar': self.author.avatar(60)
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['id', 'body', 'user_id']:
+            if field in data:
+                setattr(self, field, data[field])
 
 
 db.event.listen(db.session, 'before_commit', Post.before_commit)
